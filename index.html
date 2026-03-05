@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>고려대 CDL 도서관 안내봇</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap');
+    @keyframes blink {
+      0%, 100% { opacity: 0.25; transform: scale(0.8); }
+      50% { opacity: 1; transform: scale(1.1); }
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      height: 100vh;
+      background: #0d0d0e;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', sans-serif;
+      color: #f0f0f0;
+    }
+    textarea::placeholder { color: #3a3a3e; }
+    ::-webkit-scrollbar { width: 3px; }
+    ::-webkit-scrollbar-thumb { background: #2a2a2c; border-radius: 3px; }
+
+    #header {
+      width: 100%; max-width: 680px;
+      padding: 20px 20px 12px;
+      display: flex; align-items: center; gap: 12px;
+      border-bottom: 1px solid #1e1e20;
+      flex-shrink: 0;
+    }
+    #header-icon {
+      width: 38px; height: 38px; border-radius: 10px;
+      background: linear-gradient(135deg, #8b1a1a 0%, #c0392b 100%);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; flex-shrink: 0;
+    }
+    #header-title { font-weight: 700; font-size: 15px; letter-spacing: -0.3px; }
+    #header-sub { color: #555; font-size: 11px; margin-top: 1px; }
+
+    #messages {
+      flex: 1; width: 100%; max-width: 680px;
+      overflow-y: auto; padding: 20px 20px 0;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    .msg-row { display: flex; align-items: flex-start; gap: 8px; }
+    .msg-row.user { justify-content: flex-end; }
+    .msg-row.assistant { justify-content: flex-start; }
+    .bot-icon {
+      width: 26px; height: 26px; border-radius: 7px; flex-shrink: 0; margin-top: 2px;
+      background: linear-gradient(135deg, #8b1a1a, #c0392b);
+      display: flex; align-items: center; justify-content: center; font-size: 13px;
+    }
+    .bubble {
+      max-width: 80%; padding: 10px 14px;
+      font-size: 13.5px; line-height: 1.65;
+      white-space: pre-wrap; word-break: break-word; color: #ebebeb;
+    }
+    .bubble.user {
+      background: linear-gradient(135deg, #8b1a1a, #c0392b);
+      border-radius: 16px 16px 4px 16px;
+    }
+    .bubble.assistant {
+      background: #181819; border: 1px solid #252527;
+      border-radius: 4px 16px 16px 16px;
+    }
+    .typing-dots { display: flex; gap: 5px; align-items: center; padding: 12px 16px; }
+    .dot {
+      width: 5px; height: 5px; border-radius: 50%; background: #555;
+      animation: blink 1.2s ease-in-out infinite;
+    }
+
+    #quick-wrap {
+      width: 100%; max-width: 680px;
+      padding: 14px 20px 0;
+      display: flex; flex-wrap: wrap; gap: 7px;
+    }
+    .quick-btn {
+      background: #181819; border: 1px solid #252527;
+      border-radius: 18px; padding: 6px 13px;
+      color: #aaa; font-size: 12px; cursor: pointer;
+      transition: all 0.15s; font-family: inherit;
+    }
+    .quick-btn:hover { border-color: #c0392b; color: #eee; }
+
+    #input-wrap {
+      width: 100%; max-width: 680px;
+      padding: 14px 20px 22px;
+      display: flex; gap: 8px; flex-shrink: 0;
+    }
+    #input {
+      flex: 1; background: #181819; border: 1px solid #252527;
+      border-radius: 12px; padding: 11px 15px;
+      color: #ebebeb; font-size: 13.5px;
+      resize: none; outline: none;
+      font-family: inherit; line-height: 1.5;
+      transition: border-color 0.15s;
+    }
+    #input:focus { border-color: #8b1a1a; }
+    #send-btn {
+      width: 42px; height: 42px; border-radius: 10px; flex-shrink: 0; align-self: flex-end;
+      background: #181819; border: 1px solid #252527;
+      color: #444; font-size: 17px; cursor: not-allowed;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s;
+    }
+    #send-btn.active {
+      background: linear-gradient(135deg, #8b1a1a, #c0392b);
+      color: #fff; cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+<div id="header">
+  <div id="header-icon">📚</div>
+  <div>
+    <div id="header-title">고려대 CDL 도서관 안내봇</div>
+    <div id="header-sub">학술정보관 시설·자료 이용 도우미</div>
+  </div>
+</div>
+
+<div id="messages"></div>
+
+<div id="quick-wrap">
+  <button class="quick-btn" onclick="sendMessage('CDL 층별 시설 알려줘')">CDL 층별 시설 알려줘</button>
+  <button class="quick-btn" onclick="sendMessage('그룹스터디룸 예약 방법')">그룹스터디룸 예약 방법</button>
+  <button class="quick-btn" onclick="sendMessage('Theater 예약 어떻게 해?')">Theater 예약 어떻게 해?</button>
+  <button class="quick-btn" onclick="sendMessage('대출 몇 권까지 돼?')">대출 몇 권까지 돼?</button>
+  <button class="quick-btn" onclick="sendMessage('연체하면 어떻게 되나요?')">연체하면 어떻게 되나요?</button>
+  <button class="quick-btn" onclick="sendMessage('국제기구자료실 뭐가 있어?')">국제기구자료실 뭐가 있어?</button>
+  <button class="quick-btn" onclick="sendMessage('슬리핑존 이용방법')">슬리핑존 이용방법</button>
+  <button class="quick-btn" onclick="sendMessage('화상회의실 신청하려면?')">화상회의실 신청하려면?</button>
+</div>
+
+<div id="input-wrap">
+  <textarea id="input" rows="1" placeholder="질문 입력 후 Enter..."></textarea>
+  <button id="send-btn" onclick="sendMessage()">↑</button>
+</div>
+
+<script>
+const API_KEY = "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"; 
+
+const SYSTEM_PROMPT = `당신은 고려대학교 학술정보관(CDL) 도서관 안내 AI입니다.
+아래 도서관 정보를 바탕으로 정확하고 친절하게 답변하세요.
+답변은 간결하고 명확하게 해주세요. 모르는 내용은 "도서관 홈페이지(library.korea.ac.kr)에서 확인하거나 담당 직원에게 문의하세요"라고 안내하세요.
+한국어로만 답변하세요.
+
+=== 학술정보관(CDL) 기본 정보 ===
+- 위치: 개교 100주년 기념 삼성관 내
+- 개관: 2005년 5월
+- 특징: 국내 최초 인포메이션 커먼스(IC) 개념 기반, 멀티미디어 자료 이용 가능
+- 소장자료: DVD, 필름 등 영상자료 40,000여 점
+- 문의전화: 02-3290-2782 (2층 멀티미디어열람실 데스크)
+- 자료실은 방학 중 토요일도 개관, 열람실은 연중 개방
+- 이용 시 학생증 지참 필수
+
+=== CDL 층별 시설 안내 ===
+
+[4층]
+■ 대열람실
+- 일반열람좌석 427석, 노트북 좌석 586석
+
+■ 그룹스터디룸 (4층)
+- 수용: 총 40명 (4인실 2실, 6인실 4실, 8인실 1실)
+- 시설: 회의테이블, 이동식 화이트보드
+- 예약: 시설 예약페이지/모바일 앱 (사용일 2주 전~당일까지)
+- 이용시간: 평일 9:00~22:00 (방학 9:00~19:00), 토요일 9:00~15:00 (방학 9:00~13:00), 공휴일 휴무
+
+[3층]
+■ 화상회의실
+- 수용: 12명
+- 시설: 다자간 회의장비(12개 사이트 지원), 50인치 PDP, DVD Player, AV System
+- 이용시간: 평일 9:00~17:30 (방학 9:00~16:30), 토·공휴일 휴무
+- 문의: 02-3290-2782
+
+[2층]
+■ 멀티미디어열람실
+- 용도: TV, CD, DVD, Video, Audio 등 멀티미디어 자료 열람
+- 이용방법: 모바일 앱(KLIB) 또는 좌석배정기(키오스크)로 좌석 배정
+- 이용시간: 평일 9:00~22:00 (방학 9:00~19:00), 토요일 9:00~15:00 (방학 9:00~13:00), 공휴일 휴무
+
+■ Theater
+- 수용: 16명 (의자 추가 시 최대 22명)
+- 시설: 63인치 PDP, DVD Player, AV 시스템, 7.1Ch 스피커, 2인용 소파
+- 예약: 시설 예약페이지/모바일 앱 (사용일 2주 전~이틀 전까지)
+- 최소 신청인원: 7명 이상, 관리자 승인 필요 (1~2일 소요)
+- 이용시간: 평일 9:00~22:00 (방학 9:00~19:00), 토요일 9:00~15:00 (방학 9:00~13:00), 공휴일 휴무
+
+■ 그룹프레젠테이션룸
+- 수용: 18명 / 대학원생 이상, 최소 9명 이상
+- 예약: 사용일 2주 전~이틀 전, 관리자 승인 필요
+- 이용시간: 평일 9:00~22:00 (방학 9:00~19:00), 토요일 9:00~15:00 (방학 9:00~13:00), 공휴일 휴무
+
+■ 그룹스터디룸 (2층)
+- 수용: 총 94명 (4인실 7실, 6인실 11실)
+- 예약: 사용일 2주 전~당일까지
+- 이용시간: 평일 9:00~22:00 (방학 9:00~19:00), 토요일 9:00~15:00 (방학 9:00~13:00), 공휴일 휴무
+
+■ Carrel (2층 G-Lounge)
+- 1인 집중 학습 공간, 2실
+- 이용: 모바일 앱 또는 키오스크
+
+[1층]
+■ C-Lounge
+- A Zone (144석): 무선 노트북 열람석, 06:00~23:00 연중개방
+- B Zone (40석): 유무선 네트워크, 06:00~23:00 연중개방
+- C Zone (26석): 캐럴형 1인 열람석, 06:00~23:00 연중개방
+- Group Study room (8인실 1개, 6인실 2개, 총 20석): 평일 9:00~22:00, 예약 후 2층 데스크 학생증 제출
+- Sleeping Zone (남성 2실, 여성 2실, 총 12석): 06:00~23:00 자유이용
+
+■ D-Lounge
+- A Zone (69석): 집중 학습 열람석, 06:00~23:00 연중개방
+- B Zone (29석): 노트북 열람석, 06:00~23:00 연중개방
+- Group Study room (4인실 4개, 총 16석): 평일 9:00~22:00, 예약 후 2층 데스크 학생증 제출
+
+■ L-Lounge
+- 다목적 공간, 혼천전도·용감수경 전시, 행사·학습·휴게
+- 별도 행사 없으면 자유 이용
+- 이용시간: 평일 9:00~22:00 (방학 9:00~19:00), 토·공휴일 휴무
+- 행사 예약: 사전 유선 예약, 대관신청서 필요
+
+[지하 1층]
+■ 국제기구자료실
+- 소장: UN/EU/OECD 자료, 고려대 학위논문, 교양잡지, 신문, 보존서고 (총 약 29만권)
+- UN자료: 43,800여 책 / EU자료: 9,100여 책 / OECD자료: 9,400여 책
+- 학위논문: 106,600여 권 / 보존서고: 125,000여 권
+- UN/EU/OECD: 일반인도 이용 가능, 관외 대출 불가, 복사만 가능
+- 학위논문·보존서고: 본교 학생 대출 가능
+- 교양잡지·신문: 열람·복사만 가능 (고신문은 사진촬영만 가능)
+- 문의: 02-3290-1506
+
+=== 대출/반납 규정 ===
+- 학부생: 30책, 15일, 연장 15일 3회
+- 대학원생/직원: 60책, 30일, 연장 30일 3회
+- 교원: 90책, 90일, 연장 90일 3회
+- 연회비 이용자/교환학생(학부): 10책, 15일, 연장 15일 1회
+- 연장: 반납예정일 5일 전부터, 예약자 없을 때만 가능
+- 연체: 연체일 수만큼 대출 중지 / 30일 이상 시 출입 중지
+- 변상: 동일도서로 변상 (중고 불가, 절판 시 담당자 지정 자료)
+
+=== 시설 예약 ===
+- 홈페이지: library.korea.ac.kr 시설·좌석 예약·현황 메뉴
+- 모바일 앱: KLIB`;
+
+let messages = [];
+let loading = false;
+
+function addMessage(role, content) {
+  messages.push({ role, content });
+  renderMessages();
+}
+
+function renderMessages() {
+  const container = document.getElementById('messages');
+  container.innerHTML = '';
+
+  messages.forEach(m => {
+    const row = document.createElement('div');
+    row.className = `msg-row ${m.role}`;
+
+    if (m.role === 'assistant') {
+      const icon = document.createElement('div');
+      icon.className = 'bot-icon';
+      icon.textContent = '📚';
+      row.appendChild(icon);
+    }
+
+    const bubble = document.createElement('div');
+    bubble.className = `bubble ${m.role}`;
+    bubble.textContent = m.content;
+    row.appendChild(bubble);
+    container.appendChild(row);
+  });
+
+  if (loading) {
+    const row = document.createElement('div');
+    row.className = 'msg-row assistant';
+    row.id = 'typing-row';
+    const icon = document.createElement('div');
+    icon.className = 'bot-icon';
+    icon.textContent = '📚';
+    const dots = document.createElement('div');
+    dots.className = 'bubble assistant typing-dots';
+    [0, 1, 2].forEach(i => {
+      const d = document.createElement('div');
+      d.className = 'dot';
+      d.style.animationDelay = `${i * 0.22}s`;
+      dots.appendChild(d);
+    });
+    row.appendChild(icon);
+    row.appendChild(dots);
+    container.appendChild(row);
+  }
+
+  container.scrollTop = container.scrollHeight;
+
+  // 처음 메시지 후 빠른질문 숨기기
+  if (messages.length > 1) {
+    document.getElementById('quick-wrap').style.display = 'none';
+  }
+}
+
+async function sendMessage(text) {
+  const input = document.getElementById('input');
+  const userText = text || input.value.trim();
+  if (!userText || loading) return;
+
+  input.value = '';
+  updateSendBtn();
+  addMessage('user', userText);
+  loading = true;
+  renderMessages();
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': API_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1000,
+        system: SYSTEM_PROMPT,
+        messages: messages.map(m => ({ role: m.role, content: m.content })),
+      }),
+    });
+    const data = await res.json();
+    const reply = data.content?.[0]?.text || '답변을 가져오지 못했어요. 다시 시도해 주세요.';
+    loading = false;
+    addMessage('assistant', reply);
+  } catch {
+    loading = false;
+    addMessage('assistant', '오류가 발생했어요. 잠시 후 다시 시도해 주세요.');
+  }
+
+  input.focus();
+}
+
+function updateSendBtn() {
+  const btn = document.getElementById('send-btn');
+  const val = document.getElementById('input').value.trim();
+  btn.className = val && !loading ? 'active' : '';
+}
+
+document.getElementById('input').addEventListener('input', updateSendBtn);
+document.getElementById('input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+// 초기 메시지
+addMessage('assistant', '안녕하세요! 고려대 CDL 도서관 안내 챗봇이에요 📚\n\n시설 이용, 예약 방법, 자료 대출/반납 등 궁금한 점을 편하게 질문해 주세요!');
+</script>
+</body>
+</html>
